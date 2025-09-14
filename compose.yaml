@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  client:
+    build: ./client
+    container_name: client
+    environment:
+      - CLIENT_IP=${CLIENT_IP}
+      - SERVER_IP=${SERVER_IP}
+      - FW_IP=${FW_IP}
+    privileged: true
+    networks:
+      viz-net:
+        ipv4_address: ${CLIENT_IP}
+
+  fw:
+    build: ./suricata
+    container_name: fw
+    environment:
+      - CLIENT_IP=${CLIENT_IP}
+      - SERVER_IP=${SERVER_IP}
+      - FW_IP=${FW_IP}
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - ./suricata/logs:/var/log/suricata
+    privileged: true
+    networks:
+      viz-net:
+        ipv4_address: ${FW_IP}
+
+  server:
+    build: ./server
+    container_name: server
+    environment:
+      - CLIENT_IP=${CLIENT_IP}
+      - SERVER_IP=${SERVER_IP}
+      - FW_IP=${FW_IP}
+      - VIZ_NET_SUBNET=${SUBNET}
+    privileged: true
+    networks:
+      viz-net:
+        ipv4_address: ${SERVER_IP}
+
+networks:
+  viz-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SUBNET}
+

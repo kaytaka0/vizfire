@@ -1,0 +1,134 @@
+%YAML 1.1
+---
+
+# Suricata Configuration File
+# This file contains the configuration for Suricata, the network IDS/IPS.
+
+# (1) Variables (vars)
+# Define variables for your network environment here.
+# `HOME_NET` is crucial for defining the network you are protecting.
+vars:
+  # Set `HOME_NET` to your internal network IP range.
+  # Leaving it as `any` will cause many rules to not work correctly.
+  # Example: "192.168.0.0/16"
+  address-groups:
+    HOME_NET: "[172.28.0.0/16]"
+    CLIENT_IP: "[172.28.0.10]"
+    SERVER_IP: "[172.28.0.30]"
+
+    # EXTERNAL_NET is defined as everything that is not HOME_NET.
+    EXTERNAL_NET: "!$HOME_NET"
+
+    # Define specific server IPs for more detailed rules.
+    HTTP_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+
+# (2) Host OS Policy (host-os-policy)
+# Define the operating systems of your servers and clients.
+# This improves the accuracy of rules that target specific OS vulnerabilities.
+host-os-policy:
+  linux: [172.28.0.0/16]
+
+# (3) Rule and Classification Settings
+# Specify the rule files and classification configurations for Suricata.
+
+# File that defines event priorities and classifications.
+classification-file: /etc/suricata/classification.config
+
+# File that defines URL prefixes for the `reference` keyword.
+reference-config-file: /etc/suricata/reference.config
+
+# (4) Rule Files Loading (rule-files)
+# Specify the rule files you want Suricata to load.
+# You can add your own custom rules here, like `custom.rules`.
+rule-files:
+  - custom.rules
+
+# (5) Detection Engine and Performance (engine-analysis)
+engine-analysis:
+  detect-engine-profile: medium
+  cpu-affinity:
+    - 0
+
+# (6) Output Settings (outputs)
+outputs:
+  - console:
+      enabled: yes
+  - file:
+      enabled: no
+      filename: /var/log/suricata/suricata.log
+  # EVE log (JSON format) settings. Central for SIEM integration.
+  - eve-log:
+      enabled: yes
+      filetype: regular # regular or unix_stream
+      filename: /var/log/suricata/eve.json
+      # Select the types of logs you want to output.
+      # e.g., alert, http, dns, tls, flow, fileinfo, ssh, smtp, stats
+      types:
+        - alert:
+            # Include http, dns, etc., info in alerts
+            payload-printable: yes
+        - http:
+            extended: yes # Record more detailed HTTP information
+        - dns:
+            extended: yes
+        - tls:
+            extended: yes
+        - flow
+        - fileinfo:
+            force-magic: yes # Force magic number check for file types
+            force-md5: yes   # Force MD5 hash calculation
+
+# (7) Packet Acquisition Method (af-packet for Linux)
+# Settings for high-speed packet acquisition in a Linux environment.
+# Change `eth0` to the network interface you want to monitor.
+af-packet:
+  - interface: eth0
+    # Number of threads. Often matched to the number of queues on the interface.
+    threads: 1
+    # `autofp` mode uses RSS (Receive Side Scaling) to distribute the load.
+    cluster-type: cluster_flow
+    cluster-id: 99
+    defrag: yes
+    use-mmap: yes
+
+  - interface: eth1
+    # Number of threads. Often matched to the number of queues on the interface.
+    threads: 1
+    # `autofp` mode uses RSS (Receive Side Scaling) to distribute the load.
+    cluster-type: cluster_flow
+    cluster-id: 98
+    defrag: yes
+    use-mmap: yes
+# (8) PCAP Live Mode (pcap)
+# Used in environments where af-packet is not available (e.g., BSD, macOS) or for testing.
+pcap:
+  - interface: eth0
+
+# (9) Stream Engine Settings
+# Configuration for the stream engine, which handles TCP reassembly, etc.
+stream:
+  memcap: 256mb
+  checksum-validation: yes # Enable/disable checksum validation
+
+# (10) Application Layer Parser Settings
+# Enable/disable parsers for application layer protocols like HTTP, DNS, TLS.
+app-layer:
+  protocols:
+    http:
+      enabled: yes
+    dns:
+      enabled: yes
+    tls:
+      enabled: yes
+    ssh:
+      enabled: yes
+    smtp:
+      enabled: yes

@@ -1,0 +1,1 @@
+drop tcp any any -> any any (msg:"Drop all TCP"; sid:1000001; rev:1;)
